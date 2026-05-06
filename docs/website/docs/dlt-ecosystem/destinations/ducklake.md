@@ -152,6 +152,29 @@ destination = dlt.destinations.ducklake(
 )
 ```
 
+### Metadata role (Postgres/MySQL only)
+For Postgres or MySQL catalogs, `meta_role` sets the database role that DuckLake switches to on the metadata catalog connection after authenticating. Use this when the connection role differs from the role that owns metadata catalog tables. The field is silently ignored for `sqlite`, `duckdb`, and `motherduck` catalogs.
+
+```toml
+[destination.ducklake.credentials]
+meta_role="analytics_rw"
+```
+
+Or via environment variable
+`DESTINATION__DUCKLAKE__CREDENTIALS__META_ROLE=analytics_rw`, or in code:
+```py
+import dlt
+from dlt.destinations.impl.ducklake.configuration import DuckLakeCredentials
+
+destination = dlt.destinations.ducklake(
+    credentials=DuckLakeCredentials(
+        catalog="postgresql://loader:loader@localhost:5432/dlt_data",
+        storage="s3://bucket/data",
+        meta_role="analytics_rw",
+    ),
+)
+```
+
 ### Override data path
 DuckLake stores file paths in the catalog relative to a base `DATA_PATH` that is set at creation time. When `override_data_path` is set to `True`, the `DATA_PATH` provided in the current connection replaces the stored one for both reads and writes. The stored value in the catalog is not modified.
 

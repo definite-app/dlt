@@ -36,6 +36,7 @@ def _get_ducklake_capabilities() -> DestinationCapabilitiesContext:
 class DuckLakeCredentials(DuckDbBaseCredentials):
     ducklake_name: str = DEFAULT_DUCKLAKE_NAME
     metadata_schema: Optional[str] = None
+    meta_role: Optional[str] = None
     catalog: ConnectionStringCredentials = None
     # NOTE: consider moving to DuckLakeClientConfiguration so bucket_url is not a secret
     storage: FilesystemConfiguration = None
@@ -43,6 +44,7 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
     __config_gen_annotations__: ClassVar[list[str]] = [
         "ducklake_name",
         "metadata_schema",
+        "meta_role",
         "catalog",
         "storage",
     ]
@@ -51,6 +53,7 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
         self,
         ducklake_name: str = DEFAULT_DUCKLAKE_NAME,
         metadata_schema: Optional[str] = None,
+        meta_role: Optional[str] = None,
         catalog: Union[str, ConnectionStringCredentials] = None,
         storage: Union[str, FilesystemConfiguration] = None,
     ) -> None:
@@ -65,6 +68,10 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
             metadata_schema: str, optional
                 Metadata schema to use for SQL-based catalogs. If omitted, defaults to
                 `ducklake_name`.
+            meta_role: str, optional
+                Role name to switch to on the metadata catalog after connecting
+                (Postgres/MySQL catalogs only). Ignored for sqlite, duckdb, and
+                motherduck catalogs.
             catalog: Either a connection string (for example,
                 "sqlite:///catalog.sqlite", "duckdb:///catalog.duckdb",
                 or "postgres://loader:loader@localhost:5432/dlt_data") or a
@@ -79,6 +86,7 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
         """
         self.ducklake_name = ducklake_name
         self.metadata_schema = metadata_schema
+        self.meta_role = meta_role
         if isinstance(catalog, str):
             catalog = ConnectionStringCredentials(catalog)
         self.catalog = catalog

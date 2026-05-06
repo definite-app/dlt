@@ -238,6 +238,26 @@ def test_ducklake_metadata_schema_config() -> None:
     assert configuration.credentials.metadata_schema == "bar"
 
 
+def test_ducklake_meta_role_config() -> None:
+    configuration = resolve_configuration(
+        DuckLakeClientConfiguration(
+            credentials=DuckLakeCredentials(meta_role="analytics_rw")
+        )._bind_dataset_name(dataset_name="foo")
+    )
+
+    assert configuration.credentials.meta_role == "analytics_rw"
+
+
+def test_ducklake_meta_role_default_is_none() -> None:
+    configuration = resolve_configuration(
+        DuckLakeClientConfiguration(credentials=DuckLakeCredentials())._bind_dataset_name(
+            dataset_name="foo"
+        )
+    )
+
+    assert configuration.credentials.meta_role is None
+
+
 def test_ducklake_attach_statement() -> None:
     """Low-level method to attach the ducklake catalog to the ducklake client.
 
@@ -304,6 +324,65 @@ def test_ducklake_attach_statement_with_metadata_schema() -> None:
     )
 
     assert expected_attach_statement == attach_statement
+
+
+def test_ducklake_attach_statement_with_meta_role() -> None:
+    expected_attach_statement = (
+        "ATTACH IF NOT EXISTS 'ducklake:postgres:postgres://loader:loader@localhost:5432/dlt_data'"
+        " AS foo (DATA_PATH '/path/to/storage', METADATA_SCHEMA 'foo',"
+        " META_ROLE 'analytics_rw')"
+    )
+    attach_statement = DuckLakeSqlClient.build_attach_statement(
+        catalog=ConnectionStringCredentials("postgres://loader:loader@localhost:5432/dlt_data"),
+        ducklake_name="foo",
+        meta_role="analytics_rw",
+        storage_url="/path/to/storage",
+    )
+
+    assert expected_attach_statement == attach_statement
+
+
+def test_ducklake_attach_statement_meta_role_with_override() -> None:
+    # ensures parameter ordering: METADATA_SCHEMA, META_ROLE, OVERRIDE_DATA_PATH
+    expected_attach_statement = (
+        "ATTACH IF NOT EXISTS 'ducklake:postgres:postgres://loader:loader@localhost:5432/dlt_data'"
+        " AS foo (DATA_PATH '/path/to/storage', METADATA_SCHEMA 'bar',"
+        " META_ROLE 'analytics_rw', OVERRIDE_DATA_PATH true)"
+    )
+    attach_statement = DuckLakeSqlClient.build_attach_statement(
+        catalog=ConnectionStringCredentials("postgres://loader:loader@localhost:5432/dlt_data"),
+        ducklake_name="foo",
+        metadata_schema="bar",
+        meta_role="analytics_rw",
+        storage_url="/path/to/storage",
+        override_data_path=True,
+    )
+
+    assert expected_attach_statement == attach_statement
+
+
+@pytest.mark.parametrize(
+    "catalog",
+    [
+        ConnectionStringCredentials("sqlite:///catalog.sqlite"),
+        ConnectionStringCredentials("duckdb:///catalog.duckdb"),
+        ConnectionStringCredentials("md:///my_db"),
+    ],
+    ids=["sqlite", "duckdb", "motherduck"],
+)
+def test_ducklake_meta_role_ignored_for_non_pg_mysql(
+    catalog: ConnectionStringCredentials,
+) -> None:
+    # meta_role only applies to postgres/mysql catalogs; for other backends it must be silently dropped
+    attach_statement = DuckLakeSqlClient.build_attach_statement(
+        catalog=catalog,
+        ducklake_name="foo",
+        meta_role="analytics_rw",
+        storage_url="/path/to/storage",
+    )
+
+    assert "META_ROLE" not in attach_statement
+    assert "analytics_rw" not in attach_statement
 
 
 def test_ducklake_override_data_path_config() -> None:

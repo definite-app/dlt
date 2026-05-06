@@ -52,6 +52,8 @@ class DuckLakeSqlClient(DuckDbSqlClient):
         # setup secrets and attach ducklake for each opened connections. connection pool
         # creates a separate connection for each sql_client
         try:
+            # Here is where we would install custom ducklake extension. For example:
+            # self._conn.execute("INSTALL ducklake; LOAD ducklake;")  
             if not self.credentials.storage.is_local_filesystem:
                 self.create_secret(
                     self.credentials.storage.bucket_url, self.credentials.storage.credentials
@@ -123,6 +125,7 @@ class DuckLakeSqlClient(DuckDbSqlClient):
         *,
         ducklake_name: str,
         metadata_schema: Optional[str] = None,
+        meta_role: Optional[str] = None,
         catalog: ConnectionStringCredentials,
         storage_url: str,
         override_data_path: bool = False,
@@ -139,6 +142,8 @@ class DuckLakeSqlClient(DuckDbSqlClient):
             db_url = catalog.to_url().render_as_string(hide_password=False)
             attach_statement = f"ATTACH IF NOT EXISTS 'ducklake:{catalog.drivername}:{db_url}'"
             attach_params = f", METADATA_SCHEMA '{metadata_schema}'"
+            if meta_role:
+                attach_params += f", META_ROLE '{meta_role}'"
         elif catalog.drivername == "md":
             logger.warning(
                 "Motherduck requires token present in the environment and will most probably crash."
@@ -165,6 +170,7 @@ class DuckLakeSqlClient(DuckDbSqlClient):
             return self.build_attach_statement(
                 ducklake_name=self.credentials.ducklake_name,
                 metadata_schema=self.credentials.metadata_schema,
+                meta_role=self.credentials.meta_role,
                 catalog=self.credentials.catalog,
                 storage_url=self.credentials.storage_url,
                 override_data_path=self.override_data_path,
