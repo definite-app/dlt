@@ -57,8 +57,8 @@ class DuckLakeSqlClient(DuckDbSqlClient):
         # creates a separate connection for each sql_client
         try:
             self._conn.execute(
-                f"FORCE INSTALL ducklake FROM '{DEFINITE_EXTENSION_REPO}'; LOAD ducklake;"
                 f"FORCE INSTALL postgres FROM '{DEFINITE_EXTENSION_REPO}'; LOAD postgres;"
+                f"FORCE INSTALL ducklake FROM '{DEFINITE_EXTENSION_REPO}'; LOAD ducklake;"
             )
             if not self.credentials.storage.is_local_filesystem:
                 self.create_secret(

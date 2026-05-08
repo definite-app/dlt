@@ -119,10 +119,16 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
             self.resolve()
 
     def on_resolved(self) -> None:
-        if self.extensions:
-            self.extensions = list(set([*self.extensions, "ducklake"]))
-        else:
-            self.extensions = ["ducklake"]
+        # Definite fork: do NOT auto-add "ducklake" to extensions. The pool's
+        # borrow_conn would then run `LOAD ducklake` before any user code,
+        # which causes DuckDB to autoload the community ducklake AND
+        # community postgres from the default repo. Once those are loaded,
+        # `LOAD` on an already-loaded extension is a no-op, so a later
+        # `FORCE INSTALL ... FROM <Definite repo>; LOAD ...` writes the
+        # Definite binaries to disk but cannot replace the community
+        # versions in the running process. DuckLakeSqlClient explicitly
+        # installs+loads postgres then ducklake from DEFINITE_EXTENSION_REPO
+        # in open_connection so the order is correct.
         # set connection pool so it always opens a new connection on borrow.
         # connection duplication for parallelism does not work for ducklake.
         self.conn_pool = DuckDbConnectionPool(self, always_open_connection=True)
