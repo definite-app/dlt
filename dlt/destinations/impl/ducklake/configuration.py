@@ -119,16 +119,19 @@ class DuckLakeCredentials(DuckDbBaseCredentials):
             self.resolve()
 
     def on_resolved(self) -> None:
-        # Definite fork: do NOT auto-add "ducklake" to extensions. The pool's
-        # borrow_conn would then run `LOAD ducklake` before any user code,
-        # which causes DuckDB to autoload the community ducklake AND
-        # community postgres from the default repo. Once those are loaded,
-        # `LOAD` on an already-loaded extension is a no-op, so a later
-        # `FORCE INSTALL ... FROM <Definite repo>; LOAD ...` writes the
-        # Definite binaries to disk but cannot replace the community
-        # versions in the running process. DuckLakeSqlClient explicitly
-        # installs+loads postgres then ducklake from DEFINITE_EXTENSION_REPO
-        # in open_connection so the order is correct.
+        # Definite fork: do NOT let the pool's borrow_conn pre-load `ducklake`
+        # or `postgres`. Those would resolve from DuckDB's default extension
+        # repo (community builds) and, once loaded, can't be replaced —
+        # `LOAD` on an already-loaded extension is a no-op, so the
+        # `FORCE INSTALL ... FROM DEFINITE_EXTENSION_REPO; LOAD ...` calls in
+        # DuckLakeSqlClient.open_connection would only update the on-disk
+        # cache. Strip both names from any user-supplied extensions list and
+        # rely on DuckLakeSqlClient to install+load them explicitly from the
+        # Definite repo.
+        if self.extensions:
+            self.extensions = [
+                e for e in self.extensions if e not in ("ducklake", "postgres")
+            ]
         # set connection pool so it always opens a new connection on borrow.
         # connection duplication for parallelism does not work for ducklake.
         self.conn_pool = DuckDbConnectionPool(self, always_open_connection=True)
