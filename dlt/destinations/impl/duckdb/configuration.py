@@ -124,7 +124,7 @@ class DuckDbConnectionPool:
             # extract configs that must be passed to connect
             connect_config = {}
             for key in list(global_config.keys()):
-                if key in ("custom_user_agent",):
+                if key in ("custom_user_agent", "allow_unsigned_extensions"):
                     connect_config[key] = global_config.pop(key)
 
             if self._conn is None:

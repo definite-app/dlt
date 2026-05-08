@@ -12,6 +12,8 @@ from dlt.destinations.impl.duckdb.sql_client import DuckDBDBApiCursorImpl, DuckD
 from dlt.destinations.impl.ducklake.configuration import DuckLakeCredentials
 from dlt.destinations.sql_client import raise_open_connection_error
 
+DEFINITE_EXTENSION_REPO = "https://storage.googleapis.com/def-duckdb-extensions"
+
 
 class DuckLakeDBApiCursorImpl(DuckDBDBApiCursorImpl):
     vector_size: ClassVar[int] = 700  # vector size for ducklake
@@ -32,6 +34,8 @@ class DuckLakeSqlClient(DuckDbSqlClient):
         self.credentials: DuckLakeCredentials = credentials
         self._attach_statement: str = None
         self.override_data_path = override_data_path
+        # required so duckdb accepts ducklake/postgres extensions from the Definite repo
+        self._global_config["allow_unsigned_extensions"] = True
 
     def create_dataset(self) -> None:
         if self.has_dataset():
@@ -52,8 +56,10 @@ class DuckLakeSqlClient(DuckDbSqlClient):
         # setup secrets and attach ducklake for each opened connections. connection pool
         # creates a separate connection for each sql_client
         try:
-            # Here is where we would install custom ducklake extension. For example:
-            # self._conn.execute("INSTALL ducklake; LOAD ducklake;")  
+            self._conn.execute(
+                f"FORCE INSTALL ducklake FROM '{DEFINITE_EXTENSION_REPO}'; LOAD ducklake;"
+                f"FORCE INSTALL postgres FROM '{DEFINITE_EXTENSION_REPO}'; LOAD postgres;"
+            )
             if not self.credentials.storage.is_local_filesystem:
                 self.create_secret(
                     self.credentials.storage.bucket_url, self.credentials.storage.credentials
